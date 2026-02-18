@@ -78,7 +78,7 @@ tags = ["slow", "advanced"]
 
 ---
 
-## ⌨CLI Usage
+## CLI Usage
 
 ### Run all tests
 ```bash
