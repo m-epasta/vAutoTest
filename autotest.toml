@@ -1,0 +1,12 @@
+[hello_world]
+command = "v run tests/hello.v"
+expected_output = "Hello world!"
+tags = ["fast"]
+
+[regex_test]
+before = "echo 'secret_data' > temp_secret.txt"
+after = "rm temp_secret.txt"
+command = "echo $MY_VAR && cat temp_secret.txt"
+env = { MY_VAR = "hello_world" }
+expected_regex = "hello_world\nsecret_data"
+tags = ["slow", "advanced"]
