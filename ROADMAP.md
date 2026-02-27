@@ -1,10 +1,10 @@
-# vAutoTest Roadmap
+# autoTest Roadmap
 
-This document outlines the vision and upcoming features for `vAutoTest`. Our goal is to provide the most premium and user-friendly CLI testing framework.
+This document outlines the vision and upcoming features for `autoTest`. Our goal is to provide the most premium and user-friendly CLI testing framework.
 
 ---
 
-## ✅ Completed Features
+## Completed Features
 - [x] **Config-Driven Testing**: Define tests in `autotest.toml`.
 - [x] **Process Isolation**: Commands run in independent shell environments.
 - [x] **Lifecycle Hooks**: `before` and `after` script execution.
@@ -14,7 +14,7 @@ This document outlines the vision and upcoming features for `vAutoTest`. Our goa
 
 ---
 
-## 🚧 Upcoming Features
+## Upcoming Features
 
 ### 1. Developer Experience (DX) & CI/CD
 - **Snapshot Testing**: A `--update` flag to automatically save program output as a "golden reference," eliminating manual entry for large outputs.
@@ -27,7 +27,7 @@ This document outlines the vision and upcoming features for `vAutoTest`. Our goa
 - **Interactive Mode**: A `dashboard` view to browse test results and logs interactively.
 
 ### 3. File System Monitoring
-- **Watch Mode**: `vAutoTest watch` to monitor source files and trigger immediate re-tests on save.
+- **Watch Mode**: `autoTest watch` to monitor source files and trigger immediate re-tests on save.
 - **Smart Retries**: Automatically re-run only the tests that failed in the previous run.
 
 ### 4. Advanced Networking & Mocking

@@ -1,6 +1,6 @@
 # Developer Help & Contributor Guide (`DEVHELP.md`)
 
-Welcome to the `vAutoTest` development guide! This document provides technical insights for those looking to contribute to or extend the tool.
+Welcome to the `autoTest` development guide! This document provides technical insights for those looking to contribute to or extend the tool.
 
 ## Project Architecture
 
@@ -20,16 +20,16 @@ The project is structured into several modular V files within the `src/` directo
 
 ```bash
 # Debug build (fast)
-v src -o vAutoTest
+v src -o autoTest
 
 # Optimized build for release
-v -prod src -o vAutoTest
+v -prod src -o autoTest
 ```
 
 ## Working with Source
 
 ### Process Management in V
-The tool uses `os.Process` with `use_stdio_ctl = true` and `set_redirect_stdio()`. 
+The tool uses `os.Process` with `use_stdio_ctl = true` and `set_redirect_stdio()`.
 Commands are wrapped in `/bin/sh -c` to ensure robust path resolution and environment variable support.
 
 ### Adding New Assertion Types
@@ -40,9 +40,9 @@ If you want to add a new matcher (e.g., `expected_json`):
 
 ## Testing the Tester
 
-To test your changes to `vAutoTest` itself:
-1. Rebuild the binary: `v src -o vAutoTest`.
-2. Run the provided suite: `./vAutoTest test`.
+To test your changes to `autoTest` itself:
+1. Rebuild the binary: `v src -o autoTest`.
+2. Run the provided suite: `./autoTest test`.
 3. Use `autotest.toml` to define edge cases for testing.
 
 ## Code Style
@@ -52,4 +52,4 @@ To test your changes to `vAutoTest` itself:
 
 ---
 
-Thank you for contributing to making `vAutoTest` the best premium testing experience!
+Thank you for contributing to making `autoTest` the best premium testing experience!
