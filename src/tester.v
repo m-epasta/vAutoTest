@@ -9,13 +9,14 @@ pub:
 	id          string
 	name        string
 	description string
-	run_fn      fn (stage Stage, cmd string) bool @[required]
+	run_fn      fn (stage Stage, cmd string) (bool, string) @[required]
 }
 
 pub struct Tester {
 pub mut:
 	executable_path string
 	config_tests    map[string]TestConfig
+	static_vars     map[string]string
 	tags_filter     []string
 	names_filter    []string
 }
@@ -26,16 +27,17 @@ pub fn new_tester(executable_path string) Tester {
 	}
 }
 
-pub fn new_tester_from_config(config map[string]TestConfig, tags []string, names []string) Tester {
+pub fn new_tester_from_config(config Config, tags []string, names []string) Tester {
 	return Tester{
-		config_tests: config
+		config_tests: config.tests
+		static_vars:  config.static_vars
 		tags_filter:  tags
 		names_filter: names
 	}
 }
 
-pub fn (t Tester) run() {
-	log_info('--- Starting vAutoTest ---')
+pub fn (mut t Tester) run() {
+	log_info('--- Starting autoTest ---')
 
 	if t.config_tests.len > 0 {
 		t.run_config_tests()
@@ -59,18 +61,23 @@ fn (t Tester) run_single_test() {
 
 	log_stage(stage.id, 'Running tests for: ${stage.name}')
 
-	success := stage.run_fn(stage, t.executable_path)
+	success, output := stage.run_fn(stage, t.executable_path)
 
 	if success {
 		log_success(stage.id, 'Test passed!')
 	} else {
-		log_error(stage.id, 'Test failed!')
+		if output.contains('Permission denied') {
+			log_error(stage.id, 'Test failed: Permission denied.')
+			log_info('Hint: Try making the script executable with `chmod +x` or run it with an interpreter (e.g., `node script.js`).')
+		} else {
+			log_error(stage.id, 'Test failed!')
+		}
 		exit(1)
 	}
 	println('')
 }
 
-fn (t Tester) run_config_tests() {
+fn (mut t Tester) run_config_tests() {
 	// Sort test names for deterministic execution
 	mut names := t.config_tests.keys()
 	names.sort()
@@ -101,24 +108,41 @@ fn (t Tester) run_config_tests() {
 
 		log_stage(name, 'Running test: ${name}')
 
+		// Substitute variables in hooks and command
+		before_cmd := t.substitute(cfg.before)
+		after_cmd := t.substitute(cfg.after)
+		test_command := t.substitute(cfg.command)
+
 		// Run before hook
-		if cfg.before != '' {
-			log_info('Running before hook: ${cfg.before}')
-			success, _ := run_command_raw(name, 'before', cfg.before, map[string]string{})
-			if !success {
+		if before_cmd != '' {
+			if before_cmd.starts_with('r"') {
+				log_error(name, 'Regex check NOT supported in before hook (no previous output context)')
+				exit(1)
+			}
+			log_info('Running before hook: ${before_cmd}')
+			success_before, _ := run_command_raw(name, 'before', before_cmd, map[string]string{})
+			if !success_before {
 				log_error(name, 'Before hook failed!')
 				exit(1)
 			}
 		}
 
-		log_info('Command: ${cfg.command}')
+		log_info('Command: ${test_command}')
 
-		success, output := run_command_with_output(name, cfg.command, cfg.env)
+		success, output := run_command_with_output(name, test_command, cfg.env)
 
 		if !success {
-			log_error(name, 'Command failed!')
+			if output.contains('Permission denied') {
+				log_error(name, 'Command failed: Permission denied.')
+				log_info('Hint: Try making the script executable with `chmod +x` or run it with an interpreter (e.g., `node script.js`).')
+			} else {
+				log_error(name, 'Command failed!')
+			}
 			exit(1)
 		}
+
+		// Capture variables from output
+		t.capture_vars(output)
 
 		// Verify output
 		if cfg.expected_output != '' {
@@ -149,12 +173,28 @@ fn (t Tester) run_config_tests() {
 		}
 
 		// Run after hook
-		if cfg.after != '' {
-			log_info('Running after hook: ${cfg.after}')
-			success_after, _ := run_command_raw(name, 'after', cfg.after, map[string]string{})
-			if !success_after {
-				log_error(name, 'After hook failed!')
-				exit(1)
+		if after_cmd != '' {
+			if after_cmd.starts_with('r"') {
+				// Regex matching instead of command execution
+				pattern := after_cmd[2..after_cmd.len - 1].replace('\\"', '"')
+				log_info('Verifying output with regex: ${pattern}')
+				mut re := regex.regex_opt(pattern) or {
+					log_error(name, 'Invalid after regex: ${pattern}')
+					exit(1)
+				}
+				if re.matches_string(output) {
+					log_success(name, 'After hook regex matched!')
+				} else {
+					log_error(name, 'After hook regex mismatch!')
+					exit(1)
+				}
+			} else {
+				log_info('Running after hook: ${after_cmd}')
+				success_after, _ := run_command_raw(name, 'after', after_cmd, map[string]string{})
+				if !success_after {
+					log_error(name, 'After hook failed!')
+					exit(1)
+				}
 			}
 		}
 
@@ -163,9 +203,35 @@ fn (t Tester) run_config_tests() {
 	}
 }
 
-fn stage_run_basic(stage Stage, cmd string) bool {
-	success, _ := run_command_with_output(stage.id, cmd, map[string]string{})
-	return success
+fn (t Tester) substitute(s string) string {
+	mut res := s
+	for k, v in t.static_vars {
+		res = res.replace('$' + k, v)
+	}
+	return res
+}
+
+fn (mut t Tester) capture_vars(output string) {
+	lines := output.split_into_lines()
+	for line in lines {
+		trimmed := line.trim_space()
+		if trimmed.starts_with('$') && trimmed.contains('=') && !trimmed.contains(' ') {
+			parts := trimmed.split('=')
+			if parts.len == 2 {
+				key := parts[0][1..].trim_space() // Skip the '$'
+				val := parts[1].trim_space()
+				// Basic validation for key (variable name)
+				if key.all_before(' ').len == key.len {
+					t.static_vars[key] = val
+				}
+			}
+		}
+	}
+}
+
+fn stage_run_basic(stage Stage, cmd string) (bool, string) {
+	success, output := run_command_with_output(stage.id, cmd, map[string]string{})
+	return success, output
 }
 
 fn run_command_with_output(stage_name string, cmd_str string, env map[string]string) (bool, string) {
@@ -196,6 +262,16 @@ fn run_command_with_output(stage_name string, cmd_str string, env map[string]str
 				}
 			}
 		}
+		err_out := p.stderr_read()
+		if err_out != '' {
+			lines := err_out.split('\n')
+			for line in lines {
+				if line != '' {
+					log_program(stage_name, line)
+					full_output << line
+				}
+			}
+		}
 		time.sleep(10 * time.millisecond)
 	}
 
@@ -204,6 +280,16 @@ fn run_command_with_output(stage_name string, cmd_str string, env map[string]str
 	out := p.stdout_read()
 	if out != '' {
 		lines := out.split('\n')
+		for line in lines {
+			if line != '' {
+				log_program(stage_name, line)
+				full_output << line
+			}
+		}
+	}
+	err_out_final := p.stderr_read()
+	if err_out_final != '' {
+		lines := err_out_final.split('\n')
 		for line in lines {
 			if line != '' {
 				log_program(stage_name, line)
@@ -237,6 +323,16 @@ fn run_command_raw(stage_name string, hook_type string, cmd_str string, env map[
 				}
 			}
 		}
+		err_out := p.stderr_read()
+		if err_out != '' {
+			lines := err_out.split('\n')
+			for line in lines {
+				if line != '' {
+					log_hook(stage_name, hook_type, line)
+					full_output << line
+				}
+			}
+		}
 		time.sleep(10 * time.millisecond)
 	}
 
@@ -244,6 +340,16 @@ fn run_command_raw(stage_name string, hook_type string, cmd_str string, env map[
 	out := p.stdout_read()
 	if out != '' {
 		lines := out.split('\n')
+		for line in lines {
+			if line != '' {
+				log_hook(stage_name, hook_type, line)
+				full_output << line
+			}
+		}
+	}
+	err_out_final := p.stderr_read()
+	if err_out_final != '' {
+		lines := err_out_final.split('\n')
 		for line in lines {
 			if line != '' {
 				log_hook(stage_name, hook_type, line)

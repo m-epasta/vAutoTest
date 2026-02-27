@@ -1,115 +1,93 @@
-# vAutoTest
+# autoTest
 
-**vAutoTest** is a powerful, CodeCrafters-inspired testing tool designed to provide a premium testing experience for CLI applications. It features real-time output capturing, lifecycle hooks, regex assertions, and flexible test filtering—all with beautiful, colored terminal feedback.
+An alternative to tests framework, writtent in [V](https://vlang.io/)
 
----
+## Features
 
-## ✨ Features
+- **Interactive CLI Testing**: Run benchmarks and tests against any executable binary.
+- **Dynamic Variable Capture**: Capture output variables using the `$VAR=VALUE` syntax and use them in subsequent tests.
+- **Static & Const Declarations**: Define global variables or retrieve them dynamically using shell commands (`# command`).
+- **Regex Assertions**: Use `r"pattern"` in `before`/`after` hooks and `expected_regex` for powerful output validation.
+- **Auto-Discovery**: Support for both `autotest.toml` and `.autotestrc` files.
+- **V Integration**: Native support for `v test` via a simple bridge.
 
-- **CodeCrafters Style**: Beautiful, real-time testing stages with colored logs.
-- **Config-Driven**: Define your tests in a simple `autotest.toml` file.
-- **Dynamic Hooks**: Run setup (`before`) and cleanup (`after`) commands for each test.
-- **Regex Assertions**: Verify your program's output using powerful regular expressions.
-- **Environment Support**: Inject custom environment variables per test case.
-- **Smart Filtering**: Run specific tests using tags or names via the CLI.
-- **Zero Dependencies**: Compiled to a single binary for ease of use.
+## Installation
 
----
-
-## Getting Started
-
-### Installation
-
-Ensure you have [V](https://vlang.io/) installed.
+Ensure you have the [V compiler](https://github.com/vlang/v) installed.
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/vAutoTest.git
-cd vAutoTest
-
-# Build the binary
-v src -o vAutoTest
+git clone https://github.com/youruser/autoTest
+cd autoTest
+v -o autoTest src/
 ```
 
-### Quick Start
+Alternatively, if you have [just](https://github.com/casey/just installed:
+```bash
+git clone https://github.com/m-epasta/autoTest
+cd autoTest
+just build
+```
 
-Create an `autotest.toml` in your project root:
+## Usage
+
+### Command Line Interface
+
+```bash
+# Run a single test against an executable
+autoTest test -o ./my_binary
+
+# Run a test suite from a configuration file
+autoTest test -c tests/autotest.toml
+
+# Filter tests by tag or name
+autoTest test --tag fast --only login_test
+```
+
+### Configuration (`autotest.toml` or `.autotestrc`)
 
 ```toml
-[hello_world]
-command = "v run tests/hello.v"
-expected_output = "Hello world!"
-tags = ["fast"]
+# Static variables
+static BASE_URL = http://localhost:8080
+const API_KEY = # fetch_key_from_vault.sh
+
+[login_test]
+command = "curl -X POST $BASE_URL/login"
+after = r"Token: (.*)"
+tags = ["fast", "api"]
+
+[profile_test]
+command = "curl -H 'Authorization: $TOKEN' $BASE_URL/profile"
+expected_output = "Welcome User"
 ```
 
-Run the tests:
+## Variable Capture
 
+`autoTest` scans program output for lines starting with `$`.
+- Output `$SESSION_ID=xyz`
+- Subsequent commands can use `$SESSION_ID`.
+
+## Development & Testing
+
+Use the provided `justfile` for common development tasks:
+
+- `just build`: Compiles the project.
+- `just test`: Runs the full test suite.
+- `just fmt`: Formats the V source code.
+- `just clean`: Cleans up build artifacts.
+
+## Permissions & Sudo
+
+If you encounter a **"Permission denied"** error when running a script:
+
+1.  **Make it executable**: `chmod +x scripts/my_script.js`
+2.  **Use an interpreter**: `autoTest test -o "node scripts/my_script.js"`
+
+### Running with Sudo
+If your test requires `sudo`, remember that `sudo` often clears your `PATH`. Use the `-E` flag to preserve your environment:
 ```bash
-./vAutoTest test
+sudo -E PATH=$PATH autoTest test -o my_privileged_binary
 ```
 
----
+## License
 
-## 🛠️ Configuration Guide (`autotest.toml`)
-
-Each section in the TOML file represents a test case.
-
-| Key | Type | Description |
-| :--- | :--- | :--- |
-| `command` | String | The main command to execute. |
-| `expected_output` | String | (Optional) Exact match for the program output (whitespace-trimmed). |
-| `expected_regex` | String | (Optional) Regex pattern to match against the output. |
-| `before` | String | (Optional) Command to run before the test (setup). |
-| `after` | String | (Optional) Command to run after the test (cleanup). |
-| `env` | Map | (Optional) Key-value pairs of environment variables. |
-| `tags` | Array | (Optional) List of tags for grouping tests. |
-
-### Example Example
-
-```toml
-[advanced_test]
-before = "echo 'setup' > data.tmp"
-after = "rm data.tmp"
-command = "echo $GREETING && cat data.tmp"
-env = { GREETING = "Hello from vAutoTest" }
-expected_regex = "Hello.*\nsetup"
-tags = ["slow", "advanced"]
-```
-
----
-
-## CLI Usage
-
-### Run all tests
-```bash
-./vAutoTest test
-```
-
-### Run tests by Tag
-```bash
-./vAutoTest test --tag fast
-```
-
-### Run a specific test by Name
-```bash
-./vAutoTest test --only hello_world
-```
-
-### Specify a custom Config Path
-```bash
-./vAutoTest test --config my_tests.toml
-```
-
----
-
-## Roadmap
-
-Check out [ROADMAP.md](ROADMAP.md) to see what's coming next!
-
-## Contributing
-
-Contributions are welcome! Please see [DEVHELP.md](DEVHELP.md) for development guidelines.
-
----
-
-Built with the best programming language [V Programming Language](https://vlang.io/).
+MIT License - see [LICENSE](./LICENSE) for details.

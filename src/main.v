@@ -5,7 +5,7 @@ import os
 
 fn main() {
 	mut fp := flag.new_flag_parser(os.args)
-	fp.application('vAutoTest')
+	fp.application('autoTest')
 	fp.description('A CLI tool that make interactive tests for you')
 	fp.version('0.1.0')
 
@@ -21,20 +21,30 @@ fn main() {
 		'test' {
 			mut test_fp := flag.new_flag_parser(os.args[1..])
 			executable := test_fp.string('o', `o`, '', 'executable bin to test')
-			config_path := test_fp.string('c', `c`, 'autotest.toml', 'path to config file')
+			mut config_path := test_fp.string('c', `c`, '', 'path to config file')
 			tag := test_fp.string('tag', `t`, '', 'only run tests with this tag')
 			only := test_fp.string('only', `n`, '', 'only run the test with this name')
 
 			if executable != '' {
-				if !os.exists(executable) {
+				if !executable.contains(' ') && !os.exists(executable) {
 					println('Error: executable not found: ${executable}')
 					return
 				}
-				tester := new_tester(executable)
+				mut tester := new_tester(executable)
 				tester.run()
 			} else {
+				if config_path == '' {
+					if os.exists('autotest.toml') {
+						config_path = 'autotest.toml'
+					} else if os.exists('.autotestrc') {
+						config_path = '.autotestrc'
+					} else {
+						config_path = 'autotest.toml'
+					}
+				}
+
 				if os.exists(config_path) {
-					cfg := load_config(config_path) or {
+					config := load_config(config_path) or {
 						println('Error loading config: ${err}')
 						return
 					}
@@ -49,7 +59,7 @@ fn main() {
 						names << only
 					}
 
-					tester := new_tester_from_config(cfg, tags, names)
+					mut tester := new_tester_from_config(config, tags, names)
 					tester.run()
 				} else {
 					println('Error: neither -o <executable> nor ${config_path} found')
