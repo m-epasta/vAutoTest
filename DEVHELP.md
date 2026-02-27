@@ -1,36 +1,28 @@
-# Developer Help & Contributor Guide (`DEVHELP.md`)
+# Project Architecture
 
-Welcome to the `autoTest` development guide! This document provides technical insights for those looking to contribute to or extend the tool.
-
-## Project Architecture
-
-The project is structured into several modular V files within the `src/` directory:
+The project contains few v files under src/:
 
 - **`main.v`**: Entry point and CLI flag parsing.
-- **`config.v`**: TOML configuration parsing and `TestConfig` struct.
+- **`config.v`**: TOML/.rc configuration parsing and `TestConfig` struct.
 - **`tester.v`**: Core logic for process management, output capturing, and assertion verification.
 - **`ui.v`**: Terminal formatting utilities (colors, prefixes, logging).
 
 ## Development Setup
 
-1. **V Compiler**: Requires V latest stable (or nightly).
+1. **V Compiler**: Require atleast V 0.5.0 c81e4e9 (maybe older) .
 2. **Standard Library**: Uses `os`, `flag`, `term`, `time`, `regex`, and `toml`.
 
 ### Build Commands
 
 ```bash
-# Debug build (fast)
+# fast build
 v src -o autoTest
 
-# Optimized build for release
+# Or release build
 v -prod src -o autoTest
 ```
 
 ## Working with Source
-
-### Process Management in V
-The tool uses `os.Process` with `use_stdio_ctl = true` and `set_redirect_stdio()`.
-Commands are wrapped in `/bin/sh -c` to ensure robust path resolution and environment variable support.
 
 ### Adding New Assertion Types
 If you want to add a new matcher (e.g., `expected_json`):
@@ -41,15 +33,11 @@ If you want to add a new matcher (e.g., `expected_json`):
 ## Testing the Tester
 
 To test your changes to `autoTest` itself:
-1. Rebuild the binary: `v src -o autoTest`.
-2. Run the provided suite: `./autoTest test`.
-3. Use `autotest.toml` to define edge cases for testing.
+1. Rebuild the binary: `v src -o autoTest` or `just build`.
+2. Run the provided suite: `just test`.
+3. Use `autotest.toml` or `.autotestrc` to define edge cases for testing.
 
 ## Code Style
 
 - Follow the offical [V Code Style](https://github.com/vlang/v/blob/master/doc/docs.md#code-style).
-- Use `v fmt -w src/` before committing.
-
----
-
-Thank you for contributing to making `autoTest` the best premium testing experience!
+- Use `v fmt -w src/` or `just fmt` before committing.
